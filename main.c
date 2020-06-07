@@ -47,6 +47,13 @@ int main(void)
 	EIMSK = (1 << INT0);
 	EIFR  = (1 << INTF1) | (1 << INTF0);
 	
+	lcd_write_text("HELLO");
+	/* ADC converter setup */
+	//Uruchomienie ADC, wewnêtrzne napiecie odniesienia, tryb pojedynczej konwersji, preskaler 128, wejœcie PIN5, wynik do prawej
+	ADCSRA =  (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2);
+	ADMUX  =  (1<<REFS1) | (1<<REFS0) | (1<<MUX1) ; 
+	DDRC &= 0b11100011;
+	
 	_delay_ms(1000);
 	sei();
 
@@ -59,25 +66,25 @@ int main(void)
 ISR(INT0_vect)
 {
 	cli();
-	uint8_t test_button = BUTTON_PIN;
-	printf("INTERRUPT! 0x%x\n\r",test_button);
-	if (test_button & BUTTON0_MASK)
+	ADCSRA |= (1<<ADSC);
+	while(ADCSRA & (1<<ADSC));
+		
+	if ((ADC > 120) && (ADC < 150))
 	{
 		lcd_set_position(0,0);
 		lcd_write_text("Button0");
 	}
-	else if (test_button & BUTTON1_MASK)
+	if ((ADC > 155) && (ADC < 180))
 	{
 		lcd_set_position(0,0);
 		lcd_write_text("Button1");
 	}
-	else if (test_button & BUTTON2_MASK)
+	if ((ADC > 350) && (ADC < 500))
 	{
 		lcd_set_position(0,0);
 		lcd_write_text("Button2");
 	}
-
-	
+	printf("%d\r\n",ADC);
 	_delay_ms(400);
 	sei();
 }

@@ -4,6 +4,15 @@
 #include "avr/io.h"
 
 
+
+#ifndef cbi
+#define cbi(sfr, bit)     (_SFR_BYTE(sfr) &= ~_BV(bit))
+#endif
+#ifndef sbi
+#define sbi(sfr, bit)     (_SFR_BYTE(sfr) |= _BV(bit))
+#endif
+
+
 #define BUTTON_DDR		DDRB
 #define BUTTON_PORT		PORTB
 #define BUTTON_PIN		PINB
