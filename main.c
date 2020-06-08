@@ -4,14 +4,15 @@
  * Created: 2020-06-06 11:25:22
  * Author : sajdak
  */ 
-
+#define F_CPU 16000000UL
 #include <avr/io.h>
 #include <stdio.h>
+#include "avr/wdt.h"
 #include "avr/interrupt.h"
 #include "LCD.h"
 #include "timer_app.h"
 
-uint8_t * screen = 0;
+int screen = 0;
 
 void init_UART(void)
 {
@@ -53,14 +54,35 @@ int main(void)
 	ADCSRA =  (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2);
 	ADMUX  =  (1<<REFS1) | (1<<REFS0) | (1<<MUX1) ; 
 	DDRC &= 0b11100011;
-	
 	_delay_ms(1000);
+	
+	/* Watchdog setup */
+	cli();
+	//wdt_reset();
+	MCUSR = 0x00;
+	WDTCSR = (1<<WDCE)|(1<<WDE);
+	WDTCSR = 0;
+	WDTCSR = (1<<WDIE) | (1<<WDP3) | (1 << WDP0);
 	sei();
 
     while (1) 
     {
 		asm("nop");
     }
+}
+
+ISR(WDT_vect)
+{
+	cli();
+	screen ++;
+	if ((screen % 64) == 0)
+	{
+	lcd_set_position(1,0);
+	lcd_write_int(screen/64);
+	printf("%d\n\r",screen/64);
+	}
+	WDTCSR |= (1<<WDIE);
+	sei();
 }
 
 ISR(INT0_vect)
