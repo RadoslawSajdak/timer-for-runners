@@ -34,6 +34,12 @@ int uart_putchar(char c, FILE *stream){
 	
 	return 0;
 }
+
+struct timer_bank first_interval;
+struct timer_bank second_interval;
+struct timer_lap actual_time;
+
+
 int main(void)
 {
 	init_UART();
@@ -50,7 +56,6 @@ int main(void)
 	
 	lcd_write_text("HELLO");
 	/* ADC converter setup */
-	//Uruchomienie ADC, wewnêtrzne napiecie odniesienia, tryb pojedynczej konwersji, preskaler 128, wejœcie PIN5, wynik do prawej
 	ADCSRA =  (1<<ADEN) | (1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2);
 	ADMUX  =  (1<<REFS1) | (1<<REFS0) | (1<<MUX1) ; 
 	DDRC &= 0b11100011;
@@ -58,28 +63,28 @@ int main(void)
 	
 	/* Watchdog setup */
 	cli();
-	//wdt_reset();
 	MCUSR = 0x00;
 	WDTCSR = (1<<WDCE)|(1<<WDE);
-	WDTCSR = 0;
-	WDTCSR = (1<<WDIE) | (1<<WDP3) | (1 << WDP0);
+	WDTCSR = (1<<WDIE) | (1<<WDP0) ; //32ms prescaler 
 	sei();
+
 
     while (1) 
     {
 		asm("nop");
     }
+	
+	
 }
 
 ISR(WDT_vect)
 {
 	cli();
 	screen ++;
-	if ((screen % 64) == 0)
+	if ((screen % 3) == 0)
 	{
-	lcd_set_position(1,0);
-	lcd_write_int(screen/64);
-	printf("%d\n\r",screen/64);
+		_delay_ms(4); // We need it to compensate prescaler error 3*32ms = 96, not 100ms
+		screen = timer_show_time(&actual_time,1,2);
 	}
 	WDTCSR |= (1<<WDIE);
 	sei();
