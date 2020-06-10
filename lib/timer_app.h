@@ -22,6 +22,9 @@
 #define BUTTON0_MASK	0x01
 #define BUTTON1_MASK	0x02
 #define BUTTON2_MASK	0x04
+#define TIMER_SCREEN	0
+#define LAP1_SCREEN		1
+#define LAP2_SCREEN		2
 
 struct timer_lap
 {
@@ -29,6 +32,7 @@ struct timer_lap
 	uint8_t seconds;
 	uint8_t minutes;
 	uint8_t hours;
+	uint8_t state;
 	
 };
 
@@ -37,6 +41,7 @@ struct timer_bank
 	struct timer_lap lap1;
 	struct timer_lap lap2;
 	struct timer_lap lap3;
+	struct timer_lap setup;
 }; 
 
 void timer_app_init();
@@ -50,4 +55,11 @@ void timer_app_init();
 /*
 /*@return[out]	uint8_t actual milis clock
 /************************************************************************/
-uint8_t timer_show_time(struct timer_lap * time, uint8_t row, uint8_t column);
+void timer_show_time(struct timer_lap * time, uint8_t row, uint8_t column);
+
+/************************************************************************/
+/*@brief	Simple function for timer reset. It put zeros to HH,MM,SS,mm
+/*
+/*@param[in]	pointer to struct with values to reset
+/************************************************************************/
+void timer_reset(struct timer_lap * to_reset);

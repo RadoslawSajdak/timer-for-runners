@@ -7,9 +7,9 @@ void timer_app_init()
 }
 
 
-uint8_t timer_show_time(struct timer_lap * time, uint8_t row, uint8_t column)
+void timer_show_time(struct timer_lap * time, uint8_t row, uint8_t column)
 {
-	time->milis ++;
+	
 	if (time->milis >= 10)
 	{
 		time->seconds ++;
@@ -39,5 +39,12 @@ uint8_t timer_show_time(struct timer_lap * time, uint8_t row, uint8_t column)
 	lcd_write_text(":");
 	lcd_write_int(time->milis*10);
 
-	return time -> milis;
+}
+
+void timer_reset(struct timer_lap * to_reset)
+{
+	to_reset->hours = 0;
+	to_reset->minutes = 0;
+	to_reset->seconds = 0;
+	to_reset->milis = 0;
 }
