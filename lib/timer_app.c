@@ -3,7 +3,6 @@
 void timer_app_init()
 {
 	BUTTON_DDR |= (1 << BUTTON2) | (1 << BUTTON1) | (1 << BUTTON0);
-
 }
 
 
@@ -47,7 +46,7 @@ void timer_reset(struct timer_lap * to_reset)
 	to_reset->seconds = 0;
 	to_reset->milis = 0;
 }
-
+/*	We need to check range because ACD measure isn't perfect */
 uint8_t timer_button_pressed()
 {
 	ADCSRA |= (1 << ADSC);
@@ -75,7 +74,7 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 	{
 		if (button == BUTTON0)
 		{
-			state->state ^= 0x01;
+			state->state ^= 0x01;	//It will change first bit of state - run/stop timer
 		}
 	}
 	else if (* screen_num == TIMER_SCREEN && state->state == 0)
@@ -87,13 +86,13 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 		}
 		else if (button == BUTTON1)
 		{
-			timer_reset(state);
+			timer_reset(state);		//on timer screen, Button 1 is used to reset
 		}
 		else if (button == BUTTON2)
 		{
 			lcd_write_instruction(LCD_DISPLAY_CLEAR);
 			
-			* screen_num = LAP1_SCREEN;
+			* screen_num = LAP1_SCREEN;	//Button 2 will switch displayed screen
 		}
 	}
 	else if (* screen_num == LAP1_SCREEN)
@@ -104,7 +103,7 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 		}
 		else if (button == BUTTON1)
 		{
-			* position += 1;
+			* position += 1;		//Button1 will increment position val to simulate list effect
 		}
 		else if (button == BUTTON2)
 		{
@@ -121,13 +120,13 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 		}
 		else if (button == BUTTON1)
 		{
-			* position += 1;
+			* position += 1;		//Button1 will increment position val to simulate list effect
 		}
 		else if (button == BUTTON2)
 		{
 			lcd_write_instruction(LCD_DISPLAY_CLEAR);
 			_delay_ms(400);
-			* screen_num = TIMER_SCREEN; // Here's something is not working well
+			* screen_num = TIMER_SCREEN; 
 			state->state = 0;
 			
 		}
@@ -136,8 +135,8 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 void distance_simulator(struct timer_lap * sim_time)
 {
 	cli();
-	unsigned int sim_seconds = sim_time->hours*3600 + sim_time->minutes*60 + sim_time->seconds;
-	float distance = SPEED * sim_seconds * 0.28;
+	unsigned int sim_seconds = sim_time->hours*3600 + sim_time->minutes*60 + sim_time->seconds; // recalculate to seconds
+	float distance = SPEED * (sim_seconds + sim_time->milis/100) * 0.28; //recalculate to m/s and then calculate distance
 
 	sim_time->distance = (int)distance;
 	lcd_set_position(0,0);
@@ -149,7 +148,17 @@ void distance_simulator(struct timer_lap * sim_time)
 
 void distance_check(struct timer_lap * current_time, struct timer_bank * setup_time)
 {
-	int n = current_time->distance / setup_time->setup.distance;
+	/************************************************************************/
+	/*	It's int because we don't care about decimal values. It will show us
+	/*	how much times current time is bigger than set and then we'll be able
+	/*	to calculate which time we're crossing lap.
+	/************************************************************************/
+	int n = current_time->distance / setup_time->setup.distance; 
+	/************************************************************************/
+	/*	Here we used here 5m buffer because rounding up in calculations can
+	/*	add small errors so we'll not always be able to hit exactly 100m for
+	/*	example
+	/************************************************************************/
 	if (( current_time->distance >= setup_time->setup.distance * n) && (current_time->distance < (setup_time->setup.distance + 5) * n))
 	{
 		if(n % 3 == 1) setup_time->lap1 = * current_time;
@@ -168,7 +177,7 @@ void setup_interval(struct timer_bank * to_setup)
 	to_setup->setup.distance += STEP;
 	if(to_setup->setup.distance > MAX_INTERVAL) to_setup->setup.distance = 0;
 	lcd_write_int(to_setup->setup.distance);
-	_delay_ms(1500);
+	_delay_ms(ISDT);
 	lcd_write_instruction(LCD_DISPLAY_CLEAR);
 	
 }

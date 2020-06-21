@@ -12,45 +12,16 @@
 #include "LCD.h"
 #include "timer_app.h"
 
-int screen = 0;
 
-void init_UART(void)
-{
-	//Set baud rate 115200
-	UBRR0H = 0;
-	UBRR0L = 16;
-	//Enable receiver and transmitter
-	UCSR0B = (1<<RXEN0)|(1<<TXEN0);
-	//Double Clock Speed
-	UCSR0A = (1<<U2X0);
-	// Set frame format: 8data, 1stop bit
-	UCSR0C = (3<<UCSZ00); //(1<<USBS0)|
-}
-int uart_putchar(char c, FILE *stream){
-	//wait until buffer empty
-	while ( !( UCSR0A & (1<<UDRE0)) );
-	//Put data into buffer
-	UDR0 = c;
-	
-	return 0;
-}
 
 /* This structures will be used in interrupt so it must be globally*/
-//struct timer_bank intervals[0];
-//struct timer_bank intervals[1];
 struct timer_bank intervals[2];
 struct timer_lap actual_time;
 uint8_t actual_screen = TIMER_SCREEN;
 uint8_t position = 0;
+uint8_t screen = 0;
 int main(void)
 {
-	init_UART();
-	FILE str_uart = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
-	stdout = &str_uart;
-	
-	
-	
-	
 	lcd_init();
 	timer_app_init();
 	/* Interrupts setup */
@@ -71,17 +42,20 @@ int main(void)
 	WDTCSR = (1 << WDCE) | (1 << WDE);
 	WDTCSR = (1 << WDP0) ; //32ms prescaler 
 	sei();
-	
+	/* Default values for intervals */
 	intervals[0].setup.distance = 50;
 	intervals[1].setup.distance = 0;
+	
+	/* Main program */
     while (1) 
     {
+		/* We're going to switch between next screens in loop */
 		switch (actual_screen)
 		{
 			/* Timer screen */
 			case TIMER_SCREEN:
 			{
-				
+				/* If state is 0, timer is off so we just show actual values */
 				if (actual_time.state == 0)
 				{
 					distance_simulator(&actual_time);
@@ -90,6 +64,7 @@ int main(void)
 					_delay_ms(100);
 					
 				}
+				/* If state is 1, timer is run so we have to compare current distance to required intervals */
 				if (actual_time.state == 1)
 				{
 					WDTCSR |= (1 << WDIE);
@@ -103,6 +78,9 @@ int main(void)
 				
 				break;
 			}
+			/*	Display first "bank" with our times in intervals. Position is used to choose\
+				which pair of times we're going to show. Position helps to simulate "list move"\
+				1->2->3->1 etc.*/
 			case LAP1_SCREEN:
 			{
 				if (position%2 != 2)
@@ -129,6 +107,8 @@ int main(void)
 					lcd_write_text(" LAP3");
 					_delay_ms(100);
 				}
+				/* We're using second bit in state to change interval. Because\
+					We don't want to change any other bit in state, we mask it*/
 				if (actual_time.state & 0x02)
 				{
 					actual_time.state &= 0xfd;
@@ -136,6 +116,7 @@ int main(void)
 				}
 				break;
 			}
+			/* Lap 2 works exactly the same to lap 1 */
 			case LAP2_SCREEN:
 			{
 				if (position%2 != 2)
@@ -180,6 +161,9 @@ int main(void)
 ISR(WDT_vect)
 {
 	cli();
+	/* Internal clock isn't linear. Because we want 100ms step\
+		we need to interrupt 3 times after 32ms. Screen variable\
+		is used to remember value permanently */
 	screen ++;
 	if ((screen % 3) == 0)
 	{
@@ -194,8 +178,12 @@ ISR(WDT_vect)
 ISR(INT0_vect)
 {
 	cli();
+	/*	Because Atmega328p has only 2 external interrupts we used\
+		ADC converter. We're checking which button was pressed */
 	uint8_t button = timer_button_pressed();
+	/*	Function to change displayed informations */
 	timer_display(button, &actual_screen, &actual_time,&position );
+	/*	We need this delay to compensate bouncing and LCD delays */
 	_delay_ms(400);
 	sei();
 }
