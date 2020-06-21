@@ -2,7 +2,7 @@
  * Timer for runners.c
  *
  * Created: 2020-06-06 11:25:22
- * Author : sajdak
+ * Author : Sajdak Radoslaw
  */ 
 #define F_CPU 16000000UL
 #include <avr/io.h>
