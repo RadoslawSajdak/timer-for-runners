@@ -36,13 +36,15 @@ int uart_putchar(char c, FILE *stream){
 }
 
 /* This structures will be used in interrupt so it must be globally*/
-struct timer_bank first_interval;
-struct timer_bank second_interval;
+//struct timer_bank intervals[0];
+//struct timer_bank intervals[1];
+struct timer_bank intervals[2];
 struct timer_lap actual_time;
 uint8_t actual_screen = TIMER_SCREEN;
 uint8_t position = 0;
 int main(void)
 {
+	uint8_t check_lap = 0;
 	init_UART();
 	FILE str_uart = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 	stdout = &str_uart;
@@ -58,7 +60,6 @@ int main(void)
 	EIMSK = (1 << INT0);
 	EIFR  = (1 << INTF1) | (1 << INTF0);
 	
-	lcd_write_text("HELLO");
 	/* ADC converter setup */
 	ADCSRA =  (1 << ADEN) | (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2);
 	ADMUX  =  (1 << REFS1) | (1 << REFS0) | (1 << MUX1) ; 
@@ -71,13 +72,15 @@ int main(void)
 	WDTCSR = (1 << WDCE) | (1 << WDE);
 	WDTCSR = (1 << WDP0) ; //32ms prescaler 
 	sei();
-
-	first_interval.lap1.hours=11;
-	first_interval.lap2.minutes=17;
-	first_interval.lap3.seconds=3;
-	second_interval.lap1.hours=19;
-	second_interval.lap2.minutes=55;
-	second_interval.lap3.seconds=13;
+	
+	intervals[0].setup.distance = 50;
+	intervals[1].setup.distance = 246;
+	intervals[0].lap1.hours=11;
+	intervals[0].lap2.minutes=17;
+	intervals[0].lap3.seconds=3;
+	intervals[1].lap1.hours=19;
+	intervals[1].lap2.minutes=55;
+	intervals[1].lap3.seconds=13;
     while (1) 
     {
 		switch (actual_screen)
@@ -88,9 +91,8 @@ int main(void)
 				
 				if (actual_time.state == 0)
 				{
-					lcd_set_position(0,0);
-					lcd_write_text("Timer");
-					WDTCSR &= (!(1 << WDIE));
+					distance_simulator(&actual_time);
+					WDTCSR &= (~(1 << WDIE));
 					timer_show_time(&actual_time,1,2);
 					_delay_ms(100);
 					
@@ -98,6 +100,12 @@ int main(void)
 				if (actual_time.state == 1)
 				{
 					WDTCSR |= (1 << WDIE);
+					distance_simulator(&actual_time);
+					for (int i = 0; i < 2; i++)
+					{
+						distance_check(&actual_time,&intervals[i], &check_lap);
+					}
+					_delay_ms(100);
 				}
 				
 				break;
@@ -106,7 +114,7 @@ int main(void)
 			{
 				if (position%2 != 2)
 				{
-					timer_show_time(&first_interval.lap1, position%2, 0);
+					timer_show_time(&intervals[0].lap1, position%2, 0);
 					_delay_ms(100);
 					lcd_set_position(position%2,12);
 					lcd_write_text("LAP1");
@@ -114,7 +122,7 @@ int main(void)
 				}
 				if (position%2 + 1 != 2)
 				{
-					timer_show_time(&first_interval.lap2, position%2 + 1 , 0);
+					timer_show_time(&intervals[0].lap2, position%2 + 1 , 0);
 					_delay_ms(100);
 					lcd_set_position(position%2 + 1,12);
 					lcd_write_text("LAP2");
@@ -122,11 +130,16 @@ int main(void)
 				}
 				if (position%2 + 2 != 2)
 				{
-					timer_show_time(&first_interval.lap3, 0 , 0);
+					timer_show_time(&intervals[0].lap3, 0 , 0);
 					_delay_ms(100);
 					lcd_set_position(0,12);
 					lcd_write_text("LAP3");
 					_delay_ms(100);
+				}
+				if (actual_time.state & 0x02)
+				{
+					actual_time.state &= 0xfd;
+					setup_interval(&intervals[0]);
 				}
 				break;
 			}
@@ -134,7 +147,7 @@ int main(void)
 			{
 				if (position%2 != 2)
 				{
-					timer_show_time(&second_interval.lap1, position%2, 0);
+					timer_show_time(&intervals[1].lap1, position%2, 0);
 					_delay_ms(100);
 					lcd_set_position(position%2,12);
 					lcd_write_text("LAP1");
@@ -142,7 +155,7 @@ int main(void)
 				}
 				if (position%2 + 1 != 2)
 				{
-					timer_show_time(&second_interval.lap2, position%2 + 1 , 0);
+					timer_show_time(&intervals[1].lap2, position%2 + 1 , 0);
 					_delay_ms(100);
 					lcd_set_position(position%2 + 1,12);
 					lcd_write_text("LAP2");
@@ -150,11 +163,16 @@ int main(void)
 				}
 				if (position%2 + 2 != 2)
 				{
-					timer_show_time(&second_interval.lap3, 0 , 0);
+					timer_show_time(&intervals[1].lap3, 0 , 0);
 					_delay_ms(100);
 					lcd_set_position(0,12);
 					lcd_write_text("LAP3");
 					_delay_ms(100);
+				}
+				if (actual_time.state & 0x02)
+				{
+					actual_time.state &= 0xfd;
+					setup_interval(&intervals[1]);
 				}
 				break;
 			}
@@ -183,70 +201,9 @@ ISR(WDT_vect)
 ISR(INT0_vect)
 {
 	cli();
-	ADCSRA |= (1 << ADSC);
-	while(ADCSRA & (1 << ADSC));
-		
-	if( actual_screen == TIMER_SCREEN && actual_time.state == 1)
-	{
-		if ((ADC > 120) && (ADC < 150))
-		{
-			actual_time.state ^= 0x01;
-		}
-	}
-	else if (actual_screen == TIMER_SCREEN && actual_time.state == 0)
-	{
-		if ((ADC > 120) && (ADC < 150))
-		{
-			actual_time.state ^= 0x01;
-			actual_screen = TIMER_SCREEN;
-		}
-		else if ((ADC > 155) && (ADC < 180))
-		{
-			timer_reset(&actual_time);
-		}
-		else if ((ADC > 350) && (ADC < 500))
-		{
-			lcd_write_instruction(LCD_DISPLAY_CLEAR);
-			_delay_ms(40);
-			actual_screen = LAP1_SCREEN;
-		}
-	}
-	else if (actual_screen == LAP1_SCREEN)
-	{
-		if ((ADC > 120) && (ADC < 150))
-		{
-			actual_time.state ^= 0x01;
-			actual_screen = TIMER_SCREEN;
-		}
-		else if ((ADC > 155) && (ADC < 180))
-		{
-			position ++;
-		}
-		else if ((ADC > 350) && (ADC < 500))
-		{
-			lcd_write_instruction(LCD_DISPLAY_CLEAR);
-			_delay_ms(40);
-			actual_screen = LAP2_SCREEN;
-		}
-	}
-	else if (actual_screen == LAP2_SCREEN)
-	{
-		if ((ADC > 120) && (ADC < 150))
-		{
-			actual_time.state ^= 0x01;
-			actual_screen = TIMER_SCREEN;
-		}
-		else if ((ADC > 155) && (ADC < 180))
-		{
-			position ++;
-		}
-		else if ((ADC > 350) && (ADC < 500))
-		{
-			lcd_write_instruction(LCD_DISPLAY_CLEAR);
-			_delay_ms(400);
-			actual_screen = TIMER_SCREEN; // Here's something is not working well
-		}
-	}
+	uint8_t button = timer_button_pressed();
+	timer_display(button, &actual_screen, &actual_time,&position );
 	_delay_ms(400);
+	printf("%d\n\r",position);
 	sei();
 }
