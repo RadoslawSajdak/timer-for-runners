@@ -26,8 +26,9 @@
 #define LAP1_SCREEN		1
 #define LAP2_SCREEN		2
 
-#define SPEED			36
+#define SPEED			20
 #define STEP			50
+#define MAX_INTERVAL	300
 
 struct timer_lap
 {
@@ -88,6 +89,6 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 /************************************************************************/
 void distance_simulator(struct timer_lap * sim_time);
 
-void distance_check(struct timer_lap * current_time, struct timer_bank * setup_time, uint8_t * check);
+void distance_check(struct timer_lap * current_time, struct timer_bank * setup_time);
 
 void setup_interval(struct timer_bank * to_setup);

@@ -44,7 +44,6 @@ uint8_t actual_screen = TIMER_SCREEN;
 uint8_t position = 0;
 int main(void)
 {
-	uint8_t check_lap = 0;
 	init_UART();
 	FILE str_uart = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 	stdout = &str_uart;
@@ -74,13 +73,7 @@ int main(void)
 	sei();
 	
 	intervals[0].setup.distance = 50;
-	intervals[1].setup.distance = 246;
-	intervals[0].lap1.hours=11;
-	intervals[0].lap2.minutes=17;
-	intervals[0].lap3.seconds=3;
-	intervals[1].lap1.hours=19;
-	intervals[1].lap2.minutes=55;
-	intervals[1].lap3.seconds=13;
+	intervals[1].setup.distance = 0;
     while (1) 
     {
 		switch (actual_screen)
@@ -103,7 +96,7 @@ int main(void)
 					distance_simulator(&actual_time);
 					for (int i = 0; i < 2; i++)
 					{
-						distance_check(&actual_time,&intervals[i], &check_lap);
+						distance_check(&actual_time,&intervals[i]);
 					}
 					_delay_ms(100);
 				}
@@ -116,24 +109,24 @@ int main(void)
 				{
 					timer_show_time(&intervals[0].lap1, position%2, 0);
 					_delay_ms(100);
-					lcd_set_position(position%2,12);
-					lcd_write_text("LAP1");
+					lcd_set_position(position%2,11);
+					lcd_write_text(" LAP1");
 					_delay_ms(100);
 				}
 				if (position%2 + 1 != 2)
 				{
 					timer_show_time(&intervals[0].lap2, position%2 + 1 , 0);
 					_delay_ms(100);
-					lcd_set_position(position%2 + 1,12);
-					lcd_write_text("LAP2");
+					lcd_set_position(position%2 + 1,11);
+					lcd_write_text(" LAP2");
 					_delay_ms(100);
 				}
 				if (position%2 + 2 != 2)
 				{
 					timer_show_time(&intervals[0].lap3, 0 , 0);
 					_delay_ms(100);
-					lcd_set_position(0,12);
-					lcd_write_text("LAP3");
+					lcd_set_position(0,11);
+					lcd_write_text(" LAP3");
 					_delay_ms(100);
 				}
 				if (actual_time.state & 0x02)
@@ -149,24 +142,24 @@ int main(void)
 				{
 					timer_show_time(&intervals[1].lap1, position%2, 0);
 					_delay_ms(100);
-					lcd_set_position(position%2,12);
-					lcd_write_text("LAP1");
+					lcd_set_position(position%2,11);
+					lcd_write_text(" LAP1");
 					_delay_ms(100);
 				}
 				if (position%2 + 1 != 2)
 				{
 					timer_show_time(&intervals[1].lap2, position%2 + 1 , 0);
 					_delay_ms(100);
-					lcd_set_position(position%2 + 1,12);
-					lcd_write_text("LAP2");
+					lcd_set_position(position%2 + 1,11);
+					lcd_write_text(" LAP2");
 					_delay_ms(100);
 				}
 				if (position%2 + 2 != 2)
 				{
 					timer_show_time(&intervals[1].lap3, 0 , 0);
 					_delay_ms(100);
-					lcd_set_position(0,12);
-					lcd_write_text("LAP3");
+					lcd_set_position(0,11);
+					lcd_write_text(" LAP3");
 					_delay_ms(100);
 				}
 				if (actual_time.state & 0x02)
@@ -204,6 +197,5 @@ ISR(INT0_vect)
 	uint8_t button = timer_button_pressed();
 	timer_display(button, &actual_screen, &actual_time,&position );
 	_delay_ms(400);
-	printf("%d\n\r",position);
 	sei();
 }

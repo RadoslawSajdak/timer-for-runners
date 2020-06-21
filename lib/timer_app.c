@@ -29,7 +29,6 @@ void timer_show_time(struct timer_lap * time, uint8_t row, uint8_t column)
 	{
 		time->hours = 0;
 	}
-		
 	lcd_set_position(row,column);
 	lcd_write_int(time->hours);
 	lcd_write_text(":");
@@ -64,6 +63,7 @@ uint8_t timer_button_pressed()
 	}
 	else if ((ADC > 350) && (ADC < 500))
 	{
+		lcd_write_instruction(LCD_DISPLAY_CLEAR);
 		return BUTTON2;
 	}
 	return -1;
@@ -92,7 +92,7 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 		else if (button == BUTTON2)
 		{
 			lcd_write_instruction(LCD_DISPLAY_CLEAR);
-			_delay_ms(40);
+			
 			* screen_num = LAP1_SCREEN;
 		}
 	}
@@ -109,7 +109,7 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 		else if (button == BUTTON2)
 		{
 			lcd_write_instruction(LCD_DISPLAY_CLEAR);
-			_delay_ms(40);
+			
 			* screen_num = LAP2_SCREEN;
 		}
 	}
@@ -129,33 +129,33 @@ void timer_display(uint8_t button, uint8_t * screen_num, struct timer_lap * stat
 			_delay_ms(400);
 			* screen_num = TIMER_SCREEN; // Here's something is not working well
 			state->state = 0;
+			
 		}
 	}
 }
 void distance_simulator(struct timer_lap * sim_time)
 {
 	cli();
-	int sim_seconds = sim_time->hours*3600 + sim_time->minutes*60 + sim_time->seconds;
+	unsigned int sim_seconds = sim_time->hours*3600 + sim_time->minutes*60 + sim_time->seconds;
 	float distance = SPEED * sim_seconds * 0.28;
 
 	sim_time->distance = (int)distance;
 	lcd_set_position(0,0);
-	lcd_write_text("Dist:          "); //We need to clear line
-	lcd_set_position(0,5);
+	lcd_write_text("Distance:      "); //We need to clear line
+	lcd_set_position(0,9);
 	lcd_write_int(sim_time->distance);
 	sei();
 }
 
-void distance_check(struct timer_lap * current_time, struct timer_bank * setup_time, uint8_t * check)
+void distance_check(struct timer_lap * current_time, struct timer_bank * setup_time)
 {
 	int n = current_time->distance / setup_time->setup.distance;
-	if (((current_time->distance * n) >= (setup_time->setup.distance * n)) && \
-		(current_time->distance * n )<= (setup_time->setup.distance * n + 10))
+	if (( current_time->distance >= setup_time->setup.distance * n) && (current_time->distance < (setup_time->setup.distance + 5) * n))
 	{
-		if(* check % 3 == 0) setup_time->lap1 = * current_time;
-		if(* check % 3 == 1) setup_time->lap2 = * current_time;
-		if(* check % 3 == 2) setup_time->lap3 = * current_time;
-		* check += 1;
+		if(n % 3 == 1) setup_time->lap1 = * current_time;
+		if(n % 3 == 2) setup_time->lap2 = * current_time;
+		if(n % 3 == 0) setup_time->lap3 = * current_time;
+		
 	}
 }
 
@@ -166,7 +166,9 @@ void setup_interval(struct timer_bank * to_setup)
 	lcd_set_position(0,0);
 	lcd_write_text("Interval:");
 	to_setup->setup.distance += STEP;
+	if(to_setup->setup.distance > MAX_INTERVAL) to_setup->setup.distance = 0;
 	lcd_write_int(to_setup->setup.distance);
-	_delay_ms(500);
+	_delay_ms(1500);
+	lcd_write_instruction(LCD_DISPLAY_CLEAR);
 	
 }
